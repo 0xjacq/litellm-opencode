@@ -433,6 +433,17 @@ class OpenAIChatCompletion(BaseLLM, BaseOpenAILLM):
         - call chat.completions.create by default
         """
         start_time = time.time()
+
+        # --- Opencode Go patch: ensure reasoning_content is never null ---
+        try:
+            if "messages" in data:
+                for m in data["messages"]:
+                    if m.get("role") == "assistant":
+                        if m.get("reasoning_content") is None:
+                            m["reasoning_content"] = ""
+        except Exception:
+            pass
+
         try:
             raw_response = (
                 await openai_aclient.chat.completions.with_raw_response.create(
@@ -474,6 +485,17 @@ class OpenAIChatCompletion(BaseLLM, BaseOpenAILLM):
         - call chat.completions.create by default
         """
         raw_response = None
+
+        # --- Opencode Go patch: ensure reasoning_content is never null ---
+        try:
+            if "messages" in data:
+                for m in data["messages"]:
+                    if m.get("role") == "assistant":
+                        if m.get("reasoning_content") is None:
+                            m["reasoning_content"] = ""
+        except Exception:
+            pass
+
         try:
             raw_response = openai_client.chat.completions.with_raw_response.create(
                 **data, timeout=timeout
