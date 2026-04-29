@@ -433,6 +433,8 @@ def get_llm_provider(  # noqa: PLR0915
             custom_llm_provider = "empower"
         elif model in litellm.gradient_ai_models:
             custom_llm_provider = "gradient_ai"
+        elif model in litellm.deepseek_models:
+            custom_llm_provider = "deepseek"
         elif model == "*":
             custom_llm_provider = "openai"
         # bytez models

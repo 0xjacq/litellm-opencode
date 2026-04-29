@@ -62,6 +62,39 @@ class DeepSeekChatConfig(OpenAIGPTConfig):
 
         return optional_params
 
+    @staticmethod
+    def _ensure_reasoning_content_on_assistant_messages(
+        messages: List[AllMessageValues]
+    ) -> List[AllMessageValues]:
+        thinking_active = False
+        out = []
+        for msg in messages:
+            if not isinstance(msg, dict) or msg.get("role") != "assistant":
+                out.append(msg)
+                continue
+            if "reasoning_content" in msg:
+                thinking_active = True
+                out.append(msg)
+                continue
+            thinking_text = None
+            thinking_blocks = msg.get("thinking_blocks")
+            if isinstance(thinking_blocks, list) and thinking_blocks:
+                thinking_active = True
+                for block in thinking_blocks:
+                    if isinstance(block, dict) and block.get("type") == "thinking" and isinstance(block.get("thinking"), str):
+                        thinking_text = block["thinking"]
+                        break
+            new_msg = dict(msg)
+            new_msg.pop("thinking_blocks", None)
+            if thinking_text is not None:
+                new_msg["reasoning_content"] = thinking_text
+            out.append(new_msg)
+
+        if not thinking_active:
+            return out
+
+        return [{**m, "reasoning_content": ""} if isinstance(m, dict) and m.get("role") == "assistant" and "reasoning_content" not in m else m for m in out] # type: ignore
+
     @overload
     def _transform_messages(
         self, messages: List[AllMessageValues], model: str, is_async: Literal[True]
@@ -82,6 +115,7 @@ class DeepSeekChatConfig(OpenAIGPTConfig):
         DeepSeek does not support content in list format.
         """
         messages = handle_messages_with_content_list_to_str_conversion(messages)
+        messages = self._ensure_reasoning_content_on_assistant_messages(messages)
         if is_async:
             return super()._transform_messages(
                 messages=messages, model=model, is_async=True
