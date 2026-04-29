@@ -438,46 +438,6 @@ class OpenAIGPTConfig(BaseLLMModelInfo, BaseConfig):
             dict: The transformed request. Sent as the body of the API call.
         """
         messages = self._transform_messages(messages=messages, model=model)
-
-        # --- Opencode Go patches: DeepSeek V4 compatibility ---
-        if "deepseek" in model.lower():
-            if "pro" in model.lower():
-                optional_params["reasoning_effort"] = "max"
-
-            # Ensure reasoning_content is non-null on every assistant message.
-            # Insert dummy tool-result messages for unmatched tool_calls (cancelled
-            # or errored tool calls that would otherwise cause validation failures).
-            i = 0
-            while i < len(messages):
-                m = messages[i]
-                if m.get("role") == "assistant":
-                    if "reasoning_content" not in m or m["reasoning_content"] is None:
-                        m["reasoning_content"] = ""
-
-                    if m.get("tool_calls"):
-                        for tc in m["tool_calls"]:
-                            tc_id = tc.get("id")
-                            if not tc_id:
-                                continue
-                            found = False
-                            for next_m in messages[i + 1:]:
-                                if next_m.get("role") == "assistant":
-                                    break
-                                if (
-                                    next_m.get("role") == "tool"
-                                    and next_m.get("tool_call_id") == tc_id
-                                ):
-                                    found = True
-                                    break
-                            if not found:
-                                dummy = {
-                                    "role": "tool",
-                                    "tool_call_id": tc_id,
-                                    "content": '{"error": "Tool call cancelled or failed."}',
-                                }
-                                messages.insert(i + 1, dummy)
-                i += 1
-
         messages, tools = self.remove_cache_control_flag_from_messages_and_tools(
             model=model, messages=messages, tools=optional_params.get("tools", [])
         )
